@@ -27,9 +27,9 @@
 
 ## 2. 还原 `tools/` 目录
 
-归档只带了 `tools/InnoSetup`，其余工具需按下面布局放回（名称可不同，但构建脚本按此路径查找）。
+归档与仓库都不包含 `tools/` 下的第三方工具链，需按下面布局放置（名称可不同，但构建脚本按此路径查找）。
 
-> 可选：运行 `.\scripts\bootstrap-tools.ps1` 自动下载并配置 JDK 17、Android SDK 35、Gradle 8.9（约 500 MB 下载）。Inno Setup 已随归档提供。
+> 运行 `.\scripts\bootstrap-tools.ps1` 可自动下载并配置 JDK 17、Android SDK 35、Gradle 8.9（约 500 MB 下载）。Inno Setup 需自行安装到 `tools\InnoSetup`（见 2.4）。
 
 ```
 tools/
@@ -66,7 +66,7 @@ $sdkm = Join-Path $sdk 'cmdline-tools\latest\bin\sdkmanager.bat'
 
 ### 2.4 Inno Setup
 
-归档已包含 `tools\InnoSetup\ISCC.exe`，无需安装。若要从官网重装，选择安装到 `tools\InnoSetup` 即可。
+仓库与归档都不含安装包编译器。从 <https://jrsoftware.org/isdl.php> 下载 Inno Setup 7，安装时把目标目录设为 `tools\InnoSetup`，确保 `tools\InnoSetup\ISCC.exe` 存在。
 
 ## 3. 构建
 

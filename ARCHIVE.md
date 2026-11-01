@@ -2,6 +2,8 @@
 
 本文件夹是 **LinkSync 1.1** 的完整项目备份，包含源码、资源、构建脚本、安装脚本、文档和已构建成品。即使原程序丢失，也可以据此重建。
 
+> 本文描述的是本地完整归档。GitHub 仓库只跟踪源码、文档、脚本与图标：`dist/`（构建产物）和 `tools/`（工具链）被 [`.gitignore`](.gitignore) 排除，成品改由 [Releases](../../releases) 发布。
+
 - 归档日期：2026-11-01
 - 版本：LinkSync 1.1（Windows 1.1.0 / Android versionCode 2）
 - 运行平台：Windows 10/11 x64；Android 10+（API 29+）
