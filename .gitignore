@@ -1,0 +1,45 @@
+# ---------------------------------------------------------------
+# LinkSync — 不纳入版本控制的内容
+# ---------------------------------------------------------------
+
+# 构建产物：安装包 / 便携 exe / APK 通过 GitHub Releases 发布
+/dist/
+
+# 本地第三方工具链（约 500 MB），由 scripts/bootstrap-tools.ps1 下载，
+# 或按 REBUILD.md 手动放置
+/tools/
+
+# .NET
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+.vs/
+
+# Android / Gradle
+.gradle/
+android/.kotlin/
+android/build/
+android/app/build/
+android/local.properties
+android/app/release/
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# IDE
+.idea/
+*.iml
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# 本地凭据（绝不提交）
+gh_token*.txt
+*.token
+.env
+.env.*

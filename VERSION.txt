@@ -1,0 +1,17 @@
+LinkSync 1.1 完整归档
+=====================
+
+归档日期 : 2026-11-01
+项目版本 : 1.1
+Windows  : 1.1.0.0（net8.0-windows，自包含 win-x64）
+Android  : versionCode 2 / versionName 1.1（minSdk 29 / targetSdk 34）
+构建产物 :
+  dist\LinkSync-Setup-1.1.exe
+  dist\LinkSync-win64\LinkSync.exe
+  dist\LinkSync.apk
+
+说明 :
+  ARCHIVE.md  归档内容与校验
+  REBUILD.md  从零重建步骤与工具版本
+  README.md   安装/使用说明
+  SHA256SUMS.txt 成品 SHA-256

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<title>LinkSync</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">LS</span>
+      <div>
+        <div class="brand-name">LinkSync</div>
+        <div class="brand-sub" id="selfLine">正在连接…</div>
+      </div>
+    </div>
+    <div class="net" id="netBadge"><span class="dot"></span><span id="peerCount">0 台设备</span></div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="devices">设备</button>
+    <button class="tab" data-tab="transfers">传输</button>
+    <button class="tab" data-tab="clipboard">剪贴板</button>
+    <button class="tab" data-tab="settings">设置</button>
+  </nav>
+
+  <main>
+    <section class="page active" id="page-devices">
+      <div class="section-head">
+        <h2>设备</h2>
+        <div class="row gap">
+          <span class="hint">同一 Wi-Fi 下自动发现</span>
+          <button class="btn secondary" id="showQrBtn">显示二维码</button>
+          <button class="btn" id="scanQrBtn" hidden>扫一扫</button>
+        </div>
+      </div>
+      <div class="peer-grid" id="peerGrid"></div>
+      <div class="empty" id="peerEmpty" hidden>
+        <p>还没有发现其他设备。</p>
+        <p class="muted">请在另一台设备上打开 LinkSync；若自动发现失败，可在下方手动添加。</p>
+      </div>
+
+      <div class="card manual">
+        <div class="card-title">手动添加设备</div>
+        <div class="row">
+          <input id="manualAddr" placeholder="例如 192.168.1.20:47821" autocomplete="off">
+          <button class="btn" id="addPeerBtn">添加</button>
+        </div>
+        <p class="muted small">两台设备需在同一局域网；Windows 首次运行请允许防火墙访问。</p>
+      </div>
+    </section>
+
+    <section class="page" id="page-transfers">
+      <div class="section-head">
+        <h2>传输</h2>
+        <button class="btn ghost" id="clearTransfers">清空已完成</button>
+      </div>
+      <div class="list" id="transferList"></div>
+      <div class="empty" id="transferEmpty" hidden>暂无传输记录。</div>
+    </section>
+
+    <section class="page" id="page-clipboard">
+      <div class="section-head">
+        <h2>剪贴板</h2>
+        <div class="row gap">
+          <button class="btn" id="sendClipboardBtn">发送当前剪贴板</button>
+          <button class="btn secondary" id="openTextBtn">发送文本…</button>
+        </div>
+      </div>
+
+      <div class="section-head sub">
+        <h3>剪贴板历史</h3>
+        <span class="hint" id="autoClipHint"></span>
+      </div>
+      <div class="list" id="clipList"></div>
+      <div class="empty" id="clipEmpty" hidden>暂无记录。复制的文字会自动出现在这里。</div>
+
+      <div class="section-head sub">
+        <h3>文本消息</h3>
+      </div>
+      <div class="list" id="msgList"></div>
+      <div class="empty" id="msgEmpty" hidden>暂无消息。</div>
+    </section>
+
+    <section class="page" id="page-settings">
+      <div class="section-head"><h2>设置</h2></div>
+      <div class="card">
+        <label class="field">
+          <span>设备名称</span>
+          <input id="setName" maxlength="40" autocomplete="off">
+        </label>
+        <label class="check">
+          <input type="checkbox" id="setAutoClipboard">
+          <span>自动同步剪贴板（本机复制后广播给其他设备）</span>
+        </label>
+        <label class="field" id="downloadDirField">
+          <span>文件保存目录</span>
+          <input id="setDownloadDir" autocomplete="off">
+        </label>
+        <label class="check" id="startupField">
+          <input type="checkbox" id="setStartup">
+          <span>开机自动启动（Windows 登录后托盘运行）</span>
+        </label>
+        <div class="row" id="batteryField" hidden>
+          <button class="btn secondary" id="batteryBtn">电池优化白名单</button>
+          <span class="muted small">允许后台常驻，避免被系统清理</span>
+        </div>
+        <div class="row end">
+          <button class="btn" id="saveSettings">保存设置</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">关于</div>
+        <p class="muted small">LinkSync R1 · 局域网文件 / 剪贴板 / 文本同步 · 最多 4 台设备</p>
+        <p class="muted small" id="aboutPort"></p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<dialog id="textDialog">
+  <form method="dialog" class="dialog-body">
+    <h3>发送文本</h3>
+    <div id="textTargets" class="targets"></div>
+    <textarea id="textContent" rows="6" placeholder="输入要发送的文字…"></textarea>
+    <div class="row end">
+      <button class="btn ghost" value="cancel">取消</button>
+      <button class="btn" id="sendTextBtn" value="send">发送</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="qrDialog">
+  <div class="dialog-body qr-body">
+    <h3>扫码添加设备</h3>
+    <div class="qr-box" id="qrBox"></div>
+    <div class="qr-addr" id="qrAddr"></div>
+    <p class="muted small">在另一台 Android 设备上点「扫一扫」，对准二维码即可添加。</p>
+    <div class="row end">
+      <button class="btn ghost" id="closeQrBtn">关闭</button>
+    </div>
+  </div>
+</dialog>
+
+<div id="toast" class="toast"></div>
+<script src="qrcode.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
