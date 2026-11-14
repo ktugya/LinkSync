@@ -60,6 +60,19 @@ public static class FileUtil
         return s == "file" ? "device" : s;
     }
 
+    /// <summary>
+    /// 转换成可绕开 MAX_PATH(260) 的扩展路径，只在路径过长时启用。
+    /// </summary>
+    public static string Extended(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return path;
+        if (path.StartsWith(@"\\?\", StringComparison.Ordinal)) return path;
+        if (path.Length < 240) return path;
+        return path.StartsWith(@"\\", StringComparison.Ordinal)
+            ? @"\\?\UNC\" + path[2..]
+            : @"\\?\" + path;
+    }
+
     public static string Unique(string dir, string name)
     {
         var path = Path.Combine(dir, name);

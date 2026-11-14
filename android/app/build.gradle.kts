@@ -11,8 +11,8 @@ android {
         applicationId = "com.linksync.app"
         minSdk = 29
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.1.1"
     }
 
     buildTypes {
@@ -43,4 +43,9 @@ dependencies {
     implementation("org.nanohttpd:nanohttpd:2.3.1")
     implementation("com.google.code.gson:gson:2.11.0")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+    // zxing-android-embedded 4.3.0 的 POM 只带 com.google.zxing:core，
+    // androidx.core / fragment 是 compileOnly，必须在应用侧显式引入，
+    // 否则 CaptureManager.onResume() 会抛 NoClassDefFoundError 直接闪退。
+    implementation("androidx.core:core-ktx:1.13.1")
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
 }

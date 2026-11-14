@@ -9,6 +9,9 @@
 # 或按 REBUILD.md 手动放置
 /tools/
 
+# 1.1 原始成品备份（1.1.1 修复时保留，便于回滚）
+/_backup-original/
+
 # .NET
 [Bb]in/
 [Oo]bj/

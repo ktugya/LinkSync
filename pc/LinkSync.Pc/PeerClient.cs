@@ -62,6 +62,9 @@ public sealed class PeerClient
     public async Task<UploadResult> PushFileAsync(Peer peer, string name, long size,
         string fromId, string fromName, Stream body, Action<long> progress, CancellationToken ct)
     {
+        if (size <= 0)
+            return new UploadResult(false, "", "无法确定文件大小");
+
         try
         {
             var url = $"http://{Host(peer)}:{peer.Port}/api/upload";
@@ -107,9 +110,21 @@ public sealed class PeerClient
         }
         catch (Exception ex)
         {
-            Log.Write($"fetch info {ip}:{port}: {ex.Message}");
+            LogThrottled($"{ip}:{port}", $"fetch info {ip}:{port}: {ex.Message}");
             return null;
         }
+    }
+
+    // 对端长期离线时，探测失败会每几秒刷一条日志；同一目标 60 秒内只记一条。
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, long> LastLog = new();
+
+    private static void LogThrottled(string key, string message, int seconds = 60)
+    {
+        var now = Environment.TickCount64;
+        var last = LastLog.GetOrAdd(key, 0);
+        if (now - last < seconds * 1000L && last != 0) return;
+        LastLog[key] = now;
+        Log.Write(message);
     }
 
     public static string Hash(string text)

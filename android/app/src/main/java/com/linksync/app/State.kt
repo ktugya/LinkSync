@@ -261,6 +261,7 @@ object Store {
                 "autoReceive" to autoReceive,
                 "downloadDir" to "Download/LinkSync",
                 "startWithWindows" to false,
+                "startOnBoot" to startOnBoot,
                 "port" to Runtime.port
             )
         )

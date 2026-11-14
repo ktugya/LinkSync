@@ -162,8 +162,10 @@
     if (isAndroid) {
       $('#downloadDirField').hidden = true;
       $('#startupField').hidden = true;
+      $('#bootField').hidden = false;
       $('#batteryField').hidden = false;
     } else {
+      $('#bootField').hidden = true;
       $('#batteryField').hidden = true;
     }
     const active = document.activeElement;
@@ -173,6 +175,7 @@
     $('#setAutoClipboard').checked = !!s.autoClipboard;
     $('#setDownloadDir').value = s.downloadDir || '';
     $('#setStartup').checked = !!s.startWithWindows;
+    $('#setStartOnBoot').checked = s.startOnBoot !== false;
     settingsFilled = true;
   }
 
@@ -182,7 +185,8 @@
       autoClipboard: $('#setAutoClipboard').checked,
       autoReceive: true,
       downloadDir: $('#setDownloadDir').value.trim(),
-      startWithWindows: $('#setStartup').checked
+      startWithWindows: $('#setStartup').checked,
+      startOnBoot: $('#setStartOnBoot').checked
     };
     try {
       await api('/api/settings', {

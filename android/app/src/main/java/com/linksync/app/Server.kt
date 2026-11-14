@@ -13,7 +13,11 @@ import fi.iki.elonen.NanoHTTPD
 import fi.iki.elonen.NanoHTTPD.IHTTPSession
 import fi.iki.elonen.NanoHTTPD.Method
 import fi.iki.elonen.NanoHTTPD.Response
+import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import java.nio.charset.StandardCharsets
+import java.util.UUID
 
 class LinkServer(port: Int, private val ctx: Context) : NanoHTTPD(port) {
 
@@ -27,49 +31,72 @@ class LinkServer(port: Int, private val ctx: Context) : NanoHTTPD(port) {
     }
 
     private fun route(session: IHTTPSession): Response {
-        val uri = session.uri
+        val uri = session.uri ?: "/"
         return when {
-            uri == "/" || uri == "/index.html" -> asset("index.html")
-            uri == "/app.js" -> asset("app.js")
-            uri == "/style.css" -> asset("style.css")
-            uri == "/api/health" -> text("ok")
-            uri == "/api/info" -> json(
-                mapOf(
-                    "id" to Store.id,
-                    "name" to Store.name,
-                    "platform" to "android",
-                    "port" to Runtime.port,
-                    "version" to "1.0"
-                )
-            )
-            uri == "/api/state" -> raw(Store.stateJson())
-            uri == "/api/clipboard" && session.method == Method.POST -> clipboardPush(session)
-            uri == "/api/text" && session.method == Method.POST -> textPush(session)
-            uri == "/api/text/send" && session.method == Method.POST -> textSend(session)
-            uri == "/api/settings" && session.method == Method.POST -> settings(session)
-            uri == "/api/peers/add" && session.method == Method.POST -> peerAdd(session)
-            uri == "/api/local/copy" && session.method == Method.POST -> localCopy(session)
-            uri == "/api/local/clipboard" && session.method == Method.POST ->
-                json(mapOf("ok" to false, "text" to ""))
-            uri == "/api/transfers/clear" && session.method == Method.POST -> {
-                Store.clearFinished(); json(mapOf("ok" to true))
-            }
-            uri == "/api/upload" && session.method == Method.POST -> upload(session)
-            uri == "/api/send" && session.method == Method.POST ->
-                json(mapOf("ok" to false, "error" to "use AndroidBridge"), Response.Status.NOT_IMPLEMENTED)
-            else -> newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain; charset=utf-8", "not found")
+            uri.startsWith("/api/") -> api(session, uri)
+            session.method == Method.GET || session.method == Method.HEAD -> staticFile(uri)
+            else -> newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAIN, "not found")
         }
     }
 
-    private fun asset(path: String): Response {
-        val stream = ctx.assets.open(path)
-        val mime = when {
-            path.endsWith(".js") -> "application/javascript; charset=utf-8"
-            path.endsWith(".css") -> "text/css; charset=utf-8"
-            path.endsWith(".html") -> "text/html; charset=utf-8"
-            else -> "application/octet-stream"
+    private fun api(session: IHTTPSession, uri: String): Response = when {
+        uri == "/api/health" -> text("ok")
+        uri == "/api/info" -> json(
+            mapOf(
+                "id" to Store.id,
+                "name" to Store.name,
+                "platform" to "android",
+                "port" to Runtime.port,
+                "version" to "1.0"
+            )
+        )
+        uri == "/api/state" -> raw(Store.stateJson())
+        uri == "/api/clipboard" && session.method == Method.POST -> clipboardPush(session)
+        uri == "/api/text" && session.method == Method.POST -> textPush(session)
+        uri == "/api/text/send" && session.method == Method.POST -> textSend(session)
+        uri == "/api/settings" && session.method == Method.POST -> settings(session)
+        uri == "/api/peers/add" && session.method == Method.POST -> peerAdd(session)
+        uri == "/api/local/copy" && session.method == Method.POST -> localCopy(session)
+        uri == "/api/local/clipboard" && session.method == Method.POST ->
+            json(mapOf("ok" to false, "text" to ""))
+        uri == "/api/transfers/clear" && session.method == Method.POST -> {
+            Store.clearFinished(); json(mapOf("ok" to true))
         }
-        return newChunkedResponse(Response.Status.OK, mime, stream)
+        uri == "/api/upload" && session.method == Method.POST -> upload(session)
+        uri == "/api/send" && session.method == Method.POST -> sendToPeer(session)
+        else -> newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAIN, "not found")
+    }
+
+    /**
+     * 静态资源：直接映射 assets 目录，新增前端文件不需要再改路由（旧实现丢了 qrcode.min.js）。
+     */
+    private fun staticFile(uri: String): Response {
+        var name = if (uri == "/" || uri.isEmpty()) "index.html" else uri.removePrefix("/")
+        if (name.isEmpty() || name.contains("..") || name.contains('\\') || name.startsWith("/"))
+            return newFixedLengthResponse(Response.Status.FORBIDDEN, MIME_PLAIN, "forbidden")
+        return try {
+            val stream = ctx.assets.open(name)
+            newChunkedResponse(Response.Status.OK, mimeOf(name), stream).apply {
+                addHeader("Cache-Control", "no-store")
+            }
+        } catch (e: Exception) {
+            newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAIN, "not found")
+        }
+    }
+
+    private fun mimeOf(name: String): String = when (name.substringAfterLast('.', "").lowercase()) {
+        "html", "htm" -> "text/html; charset=utf-8"
+        "js", "mjs" -> "application/javascript; charset=utf-8"
+        "css" -> "text/css; charset=utf-8"
+        "json", "map" -> "application/json; charset=utf-8"
+        "svg" -> "image/svg+xml"
+        "png" -> "image/png"
+        "jpg", "jpeg" -> "image/jpeg"
+        "webp" -> "image/webp"
+        "ico" -> "image/x-icon"
+        "woff2" -> "font/woff2"
+        "txt" -> "text/plain; charset=utf-8"
+        else -> "application/octet-stream"
     }
 
     private fun raw(json: String): Response =
@@ -156,15 +183,30 @@ class LinkServer(port: Int, private val ctx: Context) : NanoHTTPD(port) {
         return json(mapOf("ok" to true))
     }
 
+    /**
+     * 接收文件。必须按 Content-Length 精确读取：
+     * NanoHTTPD 的 serve() 不会自动消费请求体，读到 EOF 会一直阻塞在 keep-alive 连接上。
+     */
     private fun upload(session: IHTTPSession): Response {
         val rawName = session.headers["x-file-name"] ?: "file"
         val name = sanitize(Uri.decode(rawName))
         val fromId = session.headers["x-from-id"] ?: ""
         val fromName = sanitize(Uri.decode(session.headers["x-from-name"] ?: "device"))
-        val size = session.headers["x-file-size"]?.toLongOrNull() ?: -1L
+        val declared = session.headers["x-file-size"]?.toLongOrNull() ?: -1L
+        val length = session.headers["content-length"]?.toLongOrNull() ?: -1L
 
+        if (length < 0)
+            return json(mapOf("ok" to false, "error" to "缺少 Content-Length，不支持分块上传"),
+                Response.Status.LENGTH_REQUIRED)
+        if (length == 0L)
+            return json(mapOf("ok" to false, "error" to "空文件"), Response.Status.BAD_REQUEST)
+        if (declared > 0 && declared != length)
+            return json(mapOf("ok" to false, "error" to "X-File-Size($declared) 与 Content-Length($length) 不一致"),
+                Response.Status.BAD_REQUEST)
+
+        val size = if (declared > 0) declared else length
         val peerName = fromName.ifBlank { "device" }
-        val transfer = Store.addTransfer("in", fromId, peerName, name, size.coerceAtLeast(0))
+        val transfer = Store.addTransfer("in", fromId, peerName, name, size)
         val resolver = ctx.contentResolver
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, name)
@@ -182,17 +224,10 @@ class LinkServer(port: Int, private val ctx: Context) : NanoHTTPD(port) {
         val wake = acquireWakeLock("receive")
         try {
             resolver.openOutputStream(uri)?.use { output ->
-                val input = session.inputStream
-                val buffer = ByteArray(64 * 1024)
-                var total = 0L
-                while (true) {
-                    val read = input.read(buffer)
-                    if (read <= 0) break
-                    output.write(buffer, 0, read)
-                    total += read
-                    Store.updateTransfer(transfer.id, total)
-                }
+                val copied = copyExactly(session.inputStream, output, length, transfer.id)
                 output.flush()
+                if (copied != length)
+                    throw IllegalStateException("传输不完整：$copied/$length 字节")
             } ?: throw IllegalStateException("open output failed")
 
             val done = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
@@ -206,10 +241,71 @@ class LinkServer(port: Int, private val ctx: Context) : NanoHTTPD(port) {
             Log.w(Runtime.TAG, "upload: ${e.message}")
             try { resolver.delete(uri, null, null) } catch (_: Exception) { }
             Store.finishTransfer(transfer.id, null, e.message ?: "接收失败")
-            return json(mapOf("ok" to false, "error" to (e.message ?: "error")), Response.Status.INTERNAL_ERROR)
+            return json(mapOf("ok" to false, "error" to (e.message ?: "error")), Response.Status.BAD_REQUEST)
         } finally {
             releaseWakeLock(wake)
         }
+    }
+
+    /**
+     * 浏览器端（例如用 PC 浏览器打开手机地址）发起发送：先把请求体落到缓存文件，再交给前台服务发送。
+     */
+    private fun sendToPeer(session: IHTTPSession): Response {
+        val peerId = session.parameters["peer"]?.firstOrNull().orEmpty()
+        if (peerId.isEmpty())
+            return json(mapOf("ok" to false, "error" to "缺少 peer 参数"), Response.Status.BAD_REQUEST)
+        if (!Store.peers.containsKey(peerId))
+            return json(mapOf("ok" to false, "error" to "未知设备"), Response.Status.NOT_FOUND)
+
+        val length = session.headers["content-length"]?.toLongOrNull() ?: -1L
+        if (length <= 0)
+            return json(mapOf("ok" to false, "error" to "缺少 Content-Length，不支持分块上传"),
+                Response.Status.LENGTH_REQUIRED)
+        val declared = session.headers["x-file-size"]?.toLongOrNull() ?: length
+        if (declared > 0 && declared != length)
+            return json(mapOf("ok" to false, "error" to "文件大小不一致"), Response.Status.BAD_REQUEST)
+
+        val name = sanitize(Uri.decode(session.headers["x-file-name"] ?: "file"))
+        val tmp = File(ctx.cacheDir, "out-${UUID.randomUUID()}.bin")
+        try {
+            tmp.outputStream().use { output ->
+                val copied = copyExactly(session.inputStream, output, length, "")
+                output.flush()
+                if (copied != length) throw IllegalStateException("上传不完整：$copied/$length 字节")
+            }
+        } catch (e: Exception) {
+            runCatching { tmp.delete() }
+            return json(mapOf("ok" to false, "error" to (e.message ?: "读取请求体失败")),
+                Response.Status.BAD_REQUEST)
+        }
+
+        val service = Runtime.service
+        if (service == null) {
+            runCatching { tmp.delete() }
+            return json(mapOf("ok" to false, "error" to "后台服务未运行"), Response.Status.SERVICE_UNAVAILABLE)
+        }
+        service.sendLocalFile(peerId, tmp, name, length)
+        return json(mapOf("ok" to true))
+    }
+
+    /** 只读 length 个字节，避免在 keep-alive 连接上阻塞到超时。 */
+    private fun copyExactly(input: InputStream, output: OutputStream, length: Long, transferId: String): Long {
+        val buffer = ByteArray(64 * 1024)
+        var total = 0L
+        var reported = 0L
+        while (total < length) {
+            val want = minOf(buffer.size.toLong(), length - total).toInt()
+            val read = input.read(buffer, 0, want)
+            if (read <= 0) break
+            output.write(buffer, 0, read)
+            total += read
+            if (transferId.isNotEmpty() && total - reported >= 512 * 1024) {
+                reported = total
+                Store.updateTransfer(transferId, total)
+            }
+        }
+        if (transferId.isNotEmpty()) Store.updateTransfer(transferId, total)
+        return total
     }
 
     private fun acquireWakeLock(tag: String): PowerManager.WakeLock? = try {
@@ -227,13 +323,13 @@ class LinkServer(port: Int, private val ctx: Context) : NanoHTTPD(port) {
     }
 
     private fun bodyString(session: IHTTPSession): String {
-        val length = session.headers["content-length"]?.toIntOrNull() ?: -1
+        val length = session.headers["content-length"]?.toLongOrNull() ?: -1L
         val input = session.inputStream
-        if (length in 0..4 * 1024 * 1024) {
-            val data = ByteArray(length)
+        if (length in 0..4L * 1024 * 1024) {
+            val data = ByteArray(length.toInt())
             var offset = 0
             while (offset < length) {
-                val read = input.read(data, offset, length - offset)
+                val read = input.read(data, offset, (length - offset).toInt())
                 if (read <= 0) break
                 offset += read
             }
@@ -251,5 +347,9 @@ class LinkServer(port: Int, private val ctx: Context) : NanoHTTPD(port) {
             s = if (ext.isNotEmpty() && ext.length < 10) s.take(180 - ext.length - 1) + "." + ext else s.take(180)
         }
         return s
+    }
+
+    companion object {
+        private const val MIME_PLAIN = "text/plain; charset=utf-8"
     }
 }

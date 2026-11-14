@@ -50,7 +50,7 @@ A small open-source tool for exchanging files, clipboard text and messages betwe
 > 要求 Android 10（API 29）及以上。
 
 1. 把 `LinkSync.apk` 传到手机（微信/QQ/数据线均可），点击安装；需要允许“安装未知应用”。
-2. 打开 LinkSync，允许通知权限；首次扫码时会请求相机权限。
+2. 打开 LinkSync，允许通知权限；首次扫码时会请求相机权限。默认开机自启，可在「设置」里关闭。
 3. 建议点“设置 → 电池优化白名单”，并在系统设置里允许自启动/后台运行（尤其小米、华为、OPPO、vivo、三星）。
 4. 保持通知栏里的 “LinkSync 正在运行”，服务才不会被系统回收。
 5. 文件保存到 `Download/LinkSync/`。
@@ -83,7 +83,7 @@ A small open-source tool for exchanging files, clipboard text and messages betwe
 
 - PC → 手机：设备卡片点“发文件”，可多选；手机自动接收并通知。
 - 手机 → PC：设备卡片点“发文件”，选择文件；PC 收到后托盘提示。
-- 大文件为流式传输，不占内存；不支持断点续传（本版简化）。
+- 大文件为流式传输，不占内存，单文件大小不设硬上限（只受磁盘空间限制）；不支持断点续传。
 - 目标离线时“发文件”按钮不可用；文本可以排队。
 
 ### 文本
@@ -186,6 +186,8 @@ dotnet build ./pc/LinkSync.Pc/LinkSync.Pc.csproj -c Release
 | 剪贴板不同步 | Android 后台限制；用通知按钮；确认两端“自动同步”开启 |
 | 安装 APK 被拦截 | 允许“安装未知应用”；部分 ROM 需关闭“纯净模式” |
 | 端口被占用 | 关闭占用 47821 的程序；Android 会自动顺延，PC 需释放端口 |
+| 发送大文件失败（提示 HTTP 500） | 1.1.1 已修复；请确认电脑端与手机端都是 1.1.1 |
+| 手机点「扫一扫」闪退 | 1.1.1 已修复（补齐 androidx 运行时依赖），请重新安装 APK |
 | 卸载 | Windows 设置 → 应用 → LinkSync → 卸载；或运行安装目录下 `unins000.exe` |
 
 日志：
@@ -215,6 +217,7 @@ scripts/             构建、图标生成与安装脚本
 
 ## 七、版本
 
+- **1.1.1（2026-11-14）**：修复三处线上问题——① 大文件发送 HTTP 500（PC 端 Kestrel 默认 30MB 请求体上限）；② 手机端二维码组件 404；③ 手机端扫码闪退（APK 缺少 androidx 运行时依赖）。同时修复手机接收文件卡死、上传字节数校验、错误信息透传，并补齐 Android「开机自动启动」开关。
 - **1.1（2026-11-01）**：新增 PC 二维码展示、Android 扫码添加、LS 图标、PC WebView2 原生窗口、Inno Setup 安装包；修复单实例重复启动时打开浏览器的问题。
 - 1.0：首个可用版本，局域网文件 / 文本 / 剪贴板互通与 Android 后台常驻。
 

@@ -17,6 +17,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.io.File
 import java.util.UUID
 import java.util.concurrent.ConcurrentLinkedQueue
 
@@ -209,6 +210,26 @@ class SyncService : Service() {
         }
     }
 
+    /** 浏览器端 /api/send 走这里：发送缓存文件，结束后删除。 */
+    fun sendLocalFile(peerId: String, file: File, name: String, size: Long) {
+        val peer = Store.peers[peerId]
+        if (peer == null) {
+            file.delete()
+            return
+        }
+        scope.launch {
+            val wake = acquireWakeLock("send")
+            try {
+                val transfer = Store.addTransfer("out", peer.id, peer.name, name, size)
+                Net.sendLocalFile(peer, file, name, size, transfer.id)
+                updateNotification()
+            } finally {
+                releaseWakeLock(wake)
+                runCatching { file.delete() }
+            }
+        }
+    }
+
     private fun queryNameSize(uri: Uri): Pair<String, Long> {
         var name = "file"
         var size = 0L
@@ -225,6 +246,22 @@ class SyncService : Service() {
             }
         } catch (e: Exception) {
             Log.w(Runtime.TAG, "query uri: ${e.message}")
+        }
+        // 部分 ContentProvider 不返回 SIZE，用文件描述符兜底；再不行就由发送端报错，
+        // 而不是发一个 Content-Length: 0 的空请求。
+        if (size <= 0) {
+            try {
+                contentResolver.openAssetFileDescriptor(uri, "r")?.use { fd ->
+                    if (fd.length > 0) size = fd.length
+                }
+            } catch (_: Exception) { }
+        }
+        if (size <= 0) {
+            try {
+                contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                    if (pfd.statSize > 0) size = pfd.statSize
+                }
+            } catch (_: Exception) { }
         }
         return name to size
     }

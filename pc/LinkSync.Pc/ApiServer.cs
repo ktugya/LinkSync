@@ -33,6 +33,15 @@ public sealed class ApiServer : IAsyncDisposable
         });
         builder.Logging.ClearProviders();
         builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+        builder.WebHost.ConfigureKestrel(o =>
+        {
+            // 局域网工具，文件走流式上传；Kestrel 默认 30,000,000 字节上限会把大文件挡死。
+            o.Limits.MaxRequestBodySize = null;
+            // 手机在弱 Wi-Fi 下可能短暂低速，关掉最小数据率限制，避免被误判超时中断。
+            o.Limits.MinRequestBodyDataRate = null;
+            o.Limits.MinResponseDataRate = null;
+            o.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(5);
+        });
         builder.Services.ConfigureHttpJsonOptions(o =>
         {
             o.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
@@ -139,6 +148,9 @@ public sealed class ApiServer : IAsyncDisposable
             if (target == null) return Results.NotFound(new { error = "peer not found" });
             var name = HeaderName(ctx, "X-File-Name", "file");
             var size = ParseLong(ctx.Request.Headers["X-File-Size"].ToString(), ctx.Request.ContentLength ?? 0);
+            if (size <= 0)
+                return Results.Json(new { ok = false, error = "无法确定文件大小（缺少 X-File-Size）" },
+                    Json.Options, statusCode: StatusCodes.Status400BadRequest);
             var transfer = _state.AddTransfer("out", target, name, size);
             var result = await _client.PushFileAsync(target, name, size,
                 _state.Settings.Id, _state.Settings.Name,
@@ -159,7 +171,20 @@ public sealed class ApiServer : IAsyncDisposable
             var name = HeaderName(ctx, "X-File-Name", "file");
             var fromId = ctx.Request.Headers["X-From-Id"].ToString();
             var fromName = HeaderFolder(ctx, "X-From-Name");
-            var size = ParseLong(ctx.Request.Headers["X-File-Size"].ToString(), ctx.Request.ContentLength ?? 0);
+            var declared = ParseLong(ctx.Request.Headers["X-File-Size"].ToString(), -1);
+            var contentLength = ctx.Request.ContentLength ?? -1;
+
+            // 只接受带 Content-Length 的请求：NanoHTTPD 风格的接收端不做 chunked 解码，
+            // 两端保持一致，避免"看起来在传、其实收到 0 字节"。
+            if (contentLength < 0)
+                return Results.Json(new { ok = false, error = "缺少 Content-Length，不支持分块上传" },
+                    Json.Options, statusCode: StatusCodes.Status411LengthRequired);
+
+            if (declared > 0 && declared != contentLength)
+                return Results.Json(new { ok = false, error = $"X-File-Size({declared}) 与 Content-Length({contentLength}) 不一致" },
+                    Json.Options, statusCode: StatusCodes.Status400BadRequest);
+
+            var size = declared > 0 ? declared : contentLength;
             var dir = Path.Combine(_state.Settings.DownloadDir, fromName);
             Directory.CreateDirectory(dir);
             var path = FileUtil.Unique(dir, name);
@@ -167,21 +192,53 @@ public sealed class ApiServer : IAsyncDisposable
             var transfer = _state.AddTransfer("in", peer, name, size);
             try
             {
-                await using (var fs = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-                                 1024 * 1024, useAsync: true))
+                long written;
+                await using (var fs = new FileStream(FileUtil.Extended(path), FileMode.CreateNew, FileAccess.Write,
+                                 FileShare.None, 1024 * 1024, useAsync: true))
                 {
-                    await ctx.Request.Body.CopyToAsync(fs, 1024 * 1024, ctx.RequestAborted);
+                    var body = new ProgressStream(ctx.Request.Body, n => _state.UpdateTransfer(transfer.Id, n));
+                    await body.CopyToAsync(fs, 1024 * 1024, ctx.RequestAborted);
+                    await fs.FlushAsync(ctx.RequestAborted);
+                    written = fs.Length;
                 }
+
+                if (written != contentLength)
+                {
+                    TryDelete(path);
+                    var msg = $"传输不完整：{written}/{contentLength} 字节";
+                    _state.FinishTransfer(transfer.Id, null, msg);
+                    return Results.Json(new { ok = false, error = msg }, Json.Options,
+                        statusCode: StatusCodes.Status400BadRequest);
+                }
+
                 _state.FinishTransfer(transfer.Id, path, null);
                 _state.NotifyUser($"已接收 {name}");
                 return Results.Json(new { ok = true, path }, Json.Options);
             }
+            catch (BadHttpRequestException ex)
+            {
+                // 真正的语义由异常携带（例如 413），不要一律伪装成 500。
+                TryDelete(path);
+                var status = ex.StatusCode is >= 400 and <= 599 ? ex.StatusCode : StatusCodes.Status500InternalServerError;
+                Log.Write($"upload rejected ({status}): {ex.Message}");
+                _state.FinishTransfer(transfer.Id, null,
+                    status == StatusCodes.Status413PayloadTooLarge ? "文件超过服务器允许的大小" : ex.Message);
+                return Results.Json(new { ok = false, error = ex.Message }, Json.Options, statusCode: status);
+            }
+            catch (OperationCanceledException)
+            {
+                TryDelete(path);
+                _state.FinishTransfer(transfer.Id, null, "客户端已取消");
+                return Results.Json(new { ok = false, error = "客户端已取消" }, Json.Options,
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
             catch (Exception ex)
             {
                 Log.Write("upload: " + ex);
-                try { if (File.Exists(path)) File.Delete(path); } catch { }
+                TryDelete(path);
                 _state.FinishTransfer(transfer.Id, null, ex.Message);
-                return Results.Json(new { ok = false, error = ex.Message }, Json.Options, statusCode: 500);
+                return Results.Json(new { ok = false, error = ex.Message }, Json.Options,
+                    statusCode: StatusCodes.Status500InternalServerError);
             }
         });
     }
@@ -210,6 +267,11 @@ public sealed class ApiServer : IAsyncDisposable
 
     private static long ParseLong(string? text, long fallback)
         => long.TryParse(text, out var value) ? value : fallback;
+
+    private static void TryDelete(string path)
+    {
+        try { if (File.Exists(FileUtil.Extended(path))) File.Delete(FileUtil.Extended(path)); } catch { }
+    }
 
     private static bool TryParseAddress(string addr, out string host, out int port)
     {
