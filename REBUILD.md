@@ -1,4 +1,4 @@
-# 从零重建 LinkSync 1.1.1
+# 从零重建 LinkSync 1.1.2
 
 本文件假设你拿到的是 `LinkSync-1.1-Full` 文件夹。按下面步骤可在新 Windows 机器上重建 Windows 端、Android APK 和安装包。
 
@@ -86,7 +86,7 @@ $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
 
 # 安装包（需要上一步的 exe）
 .\scripts\build-installer.ps1
-# 产物：dist\LinkSync-Setup-1.1.1.exe
+# 产物：dist\LinkSync-Setup-1.1.2.exe
 ```
 
 > 若 PowerShell 禁止运行脚本，使用：
@@ -130,7 +130,7 @@ Invoke-WebRequest http://127.0.0.1:47821/api/health
 .\scripts\install-apk.ps1
 
 # 安装包安装/卸载
-Start-Process .\dist\LinkSync-Setup-1.1.1.exe
+Start-Process .\dist\LinkSync-Setup-1.1.2.exe
 ```
 
 ## 7. 已知构建注意事项

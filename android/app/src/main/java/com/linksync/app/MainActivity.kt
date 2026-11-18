@@ -77,7 +77,7 @@ class MainActivity : Activity() {
             if (Build.VERSION.SDK_INT >= 26) startForegroundService(i) else startService(i)
         } catch (e: Exception) {
             Log.e(Runtime.TAG, "start service: ${e.message}")
-            toast("后台服务启动失败：${e.message}")
+            showToast("后台服务启动失败：${e.message}")
         }
     }
 
@@ -143,12 +143,12 @@ class MainActivity : Activity() {
     private fun sendCurrentClipboard() {
         val text = readClipboard()
         if (text.isNullOrEmpty()) {
-            toast("剪贴板里没有文字")
+            showToast("剪贴板里没有文字")
             return
         }
         lastClip = text
         Runtime.service?.broadcastClipboard(text)
-        toast("已发送剪贴板")
+        showToast("已发送剪贴板")
     }
 
     inner class Bridge {
@@ -164,7 +164,7 @@ class MainActivity : Activity() {
                     }
                     startActivityForResult(i, REQ_PICK)
                 } catch (e: Exception) {
-                    toast("无法打开文件选择器")
+                    showToast("无法打开文件选择器")
                 }
             }
         }
@@ -182,7 +182,7 @@ class MainActivity : Activity() {
                 lastClip = text
                 Runtime.lastAppliedText = text
                 Runtime.lastAppliedAt = Store.now()
-                toast("已复制")
+                showToast("已复制")
             }
         }
 
@@ -198,7 +198,7 @@ class MainActivity : Activity() {
                         .setBarcodeImageEnabled(false)
                         .initiateScan()
                 } catch (e: Exception) {
-                    toast("无法启动扫码：${e.message}")
+                    showToast("无法启动扫码：${e.message}")
                 }
             }
         }
@@ -210,7 +210,7 @@ class MainActivity : Activity() {
 
         @JavascriptInterface
         fun toast(message: String) {
-            runOnUiThread { toast(message) }
+            runOnUiThread { showToast(message) }
         }
     }
 
@@ -233,15 +233,15 @@ class MainActivity : Activity() {
         } catch (_: Exception) {
         }
         if (host.isEmpty() || port !in 1..65535) {
-            toast("不是有效的 LinkSync 二维码")
+            showToast("不是有效的 LinkSync 二维码")
             return
         }
-        toast("正在连接 $host:$port…")
+        showToast("正在连接 $host:$port…")
         Thread {
             val info = Net.fetchInfo(host, port)
             runOnUiThread {
                 if (info == null) {
-                    toast("连接失败，请确认两台设备在同一 Wi-Fi")
+                    showToast("连接失败，请确认两台设备在同一 Wi-Fi")
                 } else {
                     Store.touchPeer(
                         info.id,
@@ -250,7 +250,7 @@ class MainActivity : Activity() {
                         host,
                         if (info.port in 1..65535) info.port else port
                     )
-                    toast("已添加 ${info.name}")
+                    showToast("已添加 ${info.name}")
                 }
             }
         }.start()
@@ -260,7 +260,7 @@ class MainActivity : Activity() {
         try {
             val pm = getSystemService(PowerManager::class.java)
             if (pm.isIgnoringBatteryOptimizations(packageName)) {
-                toast("已在电池优化白名单中")
+                showToast("已在电池优化白名单中")
                 return
             }
             startActivity(
@@ -273,12 +273,12 @@ class MainActivity : Activity() {
             try {
                 startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
             } catch (_: Exception) {
-                toast("请到系统设置中允许后台运行")
+                showToast("请到系统设置中允许后台运行")
             }
         }
     }
 
-    private fun toast(message: String) {
+    private fun showToast(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
@@ -288,7 +288,7 @@ class MainActivity : Activity() {
         val scan = IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
         if (scan != null) {
             val contents = scan.contents
-            if (contents.isNullOrBlank()) toast("已取消扫码") else handleQr(contents)
+            if (contents.isNullOrBlank()) showToast("已取消扫码") else handleQr(contents)
             return
         }
 
@@ -305,7 +305,7 @@ class MainActivity : Activity() {
             } catch (_: Exception) { }
         }
         Runtime.service?.sendFiles(pendingPeer, uris)
-        toast("开始发送 ${uris.size} 个文件")
+        showToast("开始发送 ${uris.size} 个文件")
     }
 
     override fun onNewIntent(intent: Intent?) {
