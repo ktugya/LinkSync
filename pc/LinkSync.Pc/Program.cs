@@ -21,6 +21,7 @@ internal static class Program
         Application.SetCompatibleTextRenderingDefault(false);
 
         var state = new AppState();
+        state.FirewallHint = Firewall.Check(state.Settings.Port);
         var clipboardService = new ClipboardService();
         var client = new PeerClient();
         var clipboard = new ClipboardSync(state, clipboardService, client);
@@ -49,6 +50,7 @@ internal static class Program
         presence.Start();
 
         using var tray = new TrayApp(state, clipboard, server);
+        if (!string.IsNullOrEmpty(state.FirewallHint)) state.NotifyUser(state.FirewallHint!);
         var activation = new Thread(() =>
         {
             while (true)

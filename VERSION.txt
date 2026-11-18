@@ -1,12 +1,12 @@
-LinkSync 1.1.2 完整归档
+LinkSync 1.1.3 完整归档
 =======================
 
-归档日期 : 2026-11-18（1.1.2 修复版）
-项目版本 : 1.1.2
-Windows  : 1.1.2.0（net8.0-windows，自包含 win-x64）
-Android  : versionCode 4 / versionName 1.1.2（minSdk 29 / targetSdk 34）
+归档日期 : 2026-11-18（1.1.3 修复版）
+项目版本 : 1.1.3
+Windows  : 1.1.3.0（net8.0-windows，自包含 win-x64）
+Android  : versionCode 5 / versionName 1.1.3（minSdk 29 / targetSdk 34）
 构建产物 :
-  dist\LinkSync-Setup-1.1.2.exe
+  dist\LinkSync-Setup-1.1.3.exe
   dist\LinkSync-win64\LinkSync.exe
   dist\LinkSync.apk
 

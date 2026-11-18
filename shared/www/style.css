@@ -16,6 +16,7 @@
 /* hidden 属性必须压过 .field/.check/.btn 等 display 规则，否则 JS 里的
    el.hidden = true 在视觉上完全无效（设置页会同时出现 PC/Android 专属项）。 */
 [hidden] { display: none !important; }
+.warn { color: var(--red); }
 html, body { margin: 0; padding: 0; }
 body {
   background: radial-gradient(1200px 500px at 20% -10%, #1b2740 0%, transparent 60%), var(--bg);

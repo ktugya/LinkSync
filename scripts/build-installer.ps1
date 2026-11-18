@@ -9,4 +9,4 @@ if (-not (Test-Path $exe)) { throw "Windows build not found: $exe (run scripts/b
 
 & $iscc $iss
 if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
-Write-Host "OK: $(Join-Path $root 'dist\LinkSync-Setup-1.1.2.exe')"
+Write-Host "OK: $(Join-Path $root 'dist\LinkSync-Setup-1.1.3.exe')"

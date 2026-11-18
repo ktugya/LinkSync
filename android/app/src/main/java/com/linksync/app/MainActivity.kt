@@ -248,7 +248,8 @@ class MainActivity : Activity() {
                         info.name,
                         info.platform,
                         host,
-                        if (info.port in 1..65535) info.port else port
+                        if (info.port in 1..65535) info.port else port,
+                        tcp = true
                     )
                     showToast("已添加 ${info.name}")
                 }

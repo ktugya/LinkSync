@@ -20,7 +20,9 @@ data class Peer(
     var platform: String,
     var ip: String,
     var port: Int,
-    var lastSeen: Long
+    var lastSeen: Long,
+    /** 最近一次 HTTP(/api/info) 探测成功的时间。UDP 广播只证明"在网"，不证明"能连"。 */
+    var lastTcpSeen: Long = 0L
 )
 
 data class Transfer(
@@ -104,20 +106,28 @@ object Store {
 
     fun now() = System.currentTimeMillis()
 
-    fun isOnline(peer: Peer) = now() - peer.lastSeen < ONLINE_MS
+    fun isOnline(peer: Peer) = now() - peer.lastTcpSeen < ONLINE_MS
 
-    fun touchPeer(peerId: String, peerName: String, platform: String, ip: String, port: Int) {
+    /** @param tcp true 表示由一次成功的 HTTP 探测确认（能连上），否则仅是 UDP 广播（在网）。 */
+    fun touchPeer(peerId: String, peerName: String, platform: String, ip: String, port: Int, tcp: Boolean = false) {
         if (peerId.isBlank() || peerId == id) return
         val safeName = peerName.ifBlank { peerId }
+        val now = now()
         val existing = peers[peerId]
         if (existing == null) {
-            peers[peerId] = Peer(peerId, safeName, platform.ifBlank { "android" }, ip, port, now())
+            peers[peerId] = Peer(
+                peerId, safeName, platform.ifBlank { "android" }, ip, port, now,
+                if (tcp) now else 0L
+            )
         } else {
+            // 地址变了，之前的可达性作废
+            if (existing.ip != ip || existing.port != port) existing.lastTcpSeen = 0L
             existing.name = safeName
             existing.platform = platform.ifBlank { existing.platform }
             existing.ip = ip
             existing.port = port
-            existing.lastSeen = now()
+            existing.lastSeen = now
+            if (tcp) existing.lastTcpSeen = now
         }
     }
 

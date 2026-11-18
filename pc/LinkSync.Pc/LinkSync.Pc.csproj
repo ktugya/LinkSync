@@ -7,8 +7,8 @@
     <Nullable>enable</Nullable>
     <AssemblyName>LinkSync</AssemblyName>
     <RootNamespace>LinkSync</RootNamespace>
-    <Version>1.1.2</Version>
-    <FileVersion>1.1.2.0</FileVersion>
+    <Version>1.1.3</Version>
+    <FileVersion>1.1.3.0</FileVersion>
     <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
     <SatelliteResourceLanguages>zh-Hans;en</SatelliteResourceLanguages>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>

@@ -27,15 +27,15 @@ public sealed class PresenceService : IDisposable
                 var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 foreach (var peer in _state.Peers())
                 {
-                    if (now - peer.LastSeen < 8000) continue;
+                    if (now - peer.LastTcpSeen < 5000) continue;
                     var info = await _client.FetchInfoAsync(peer.Ip, peer.Port);
                     if (info != null)
-                        _state.TouchPeer(info.Id, info.Name, info.Platform, peer.Ip, peer.Port);
+                        _state.TouchPeer(info.Id, info.Name, info.Platform, peer.Ip, peer.Port, tcp: true);
                 }
             }
             catch (Exception ex) { Log.Write("presence: " + ex.Message); }
 
-            try { await Task.Delay(6000, _cts.Token); }
+            try { await Task.Delay(4000, _cts.Token); }
             catch (OperationCanceledException) { break; }
         }
     }

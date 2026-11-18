@@ -117,7 +117,7 @@ public sealed class ApiServer : IAsyncDisposable
                 return Results.BadRequest(new { error = "bad address" });
             var info = await _client.FetchInfoAsync(host, port);
             if (info == null) return Results.Json(new { ok = false, error = "无法连接" }, Json.Options, statusCode: 502);
-            _state.TouchPeer(info.Id, info.Name, info.Platform, host, info.Port > 0 ? info.Port : port);
+            _state.TouchPeer(info.Id, info.Name, info.Platform, host, info.Port > 0 ? info.Port : port, tcp: true);
             return Results.Json(new { ok = true }, Json.Options);
         });
 

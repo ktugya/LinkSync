@@ -16,6 +16,9 @@ public sealed class AppState
     public string LastAppliedText { get; private set; } = "";
     public long LastAppliedAt { get; private set; }
 
+    /// <summary>启动时探测到的防火墙问题（无问题为 null）。</summary>
+    public string? FirewallHint { get; set; }
+
     public event Action<string>? Notify;
 
     public AppState()
@@ -62,7 +65,8 @@ public sealed class AppState
         try { Notify?.Invoke(message); } catch { }
     }
 
-    public void TouchPeer(string id, string name, string platform, string ip, int port)
+    /// <param name="tcp">true 表示由一次成功的 HTTP 探测确认（能连上），否则仅是 UDP 广播（在网）。</param>
+    public void TouchPeer(string id, string name, string platform, string ip, int port, bool tcp = false)
     {
         if (string.IsNullOrWhiteSpace(id) || id == Settings.Id) return;
         lock (_gate)
@@ -72,11 +76,16 @@ public sealed class AppState
                 peer = new Peer { Id = id };
                 _peers[id] = peer;
             }
+
+            // 地址变了，之前的可达性作废
+            if (peer.Ip != ip || peer.Port != port) peer.LastTcpSeen = 0;
+
             peer.Name = string.IsNullOrWhiteSpace(name) ? id : name;
             peer.Platform = string.IsNullOrWhiteSpace(platform) ? "android" : platform;
             peer.Ip = ip;
             peer.Port = port;
             peer.LastSeen = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            if (tcp) peer.LastTcpSeen = peer.LastSeen;
         }
     }
 
@@ -273,7 +282,8 @@ public sealed class AppState
                     autoReceive = Settings.AutoReceive,
                     downloadDir = Settings.DownloadDir,
                     startWithWindows = Settings.StartWithWindows,
-                    port = Settings.Port
+                    port = Settings.Port,
+                    firewallHint = FirewallHint ?? ""
                 }
             };
             return JsonSerializer.Serialize(payload, Json.Options);

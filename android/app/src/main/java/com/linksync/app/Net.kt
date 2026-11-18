@@ -143,7 +143,21 @@ object Net {
             }
         } catch (e: Exception) {
             Log.w(Runtime.TAG, "send file: ${e.message}")
-            Store.finishTransfer(transferId, null, e.message ?: "发送失败")
+            Store.finishTransfer(transferId, null, describeFailure(e, peer.port))
+        }
+    }
+
+    /** 把"连接超时"翻译成用户能行动的提示；其它异常保留原文。 */
+    private fun describeFailure(e: Exception, port: Int): String {
+        val raw = e.message.orEmpty()
+        val looksNetwork = raw.contains("failed to connect", true) ||
+            raw.contains("timeout", true) ||
+            raw.contains("Connection refused", true) ||
+            raw.contains("unreachable", true)
+        return if (looksNetwork) {
+            "连不上对端（检查同一 Wi-Fi、电脑端防火墙是否放行 $port/TCP）"
+        } else {
+            raw.ifBlank { "发送失败" }
         }
     }
 

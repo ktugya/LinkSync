@@ -169,7 +169,7 @@ class LinkServer(port: Int, private val ctx: Context) : NanoHTTPD(port) {
         val port = if (idx > 0) addr.substring(idx + 1).toIntOrNull() ?: 47821 else 47821
         val info = Net.fetchInfo(host, port)
             ?: return json(mapOf("ok" to false, "error" to "无法连接"), Response.Status.SERVICE_UNAVAILABLE)
-        Store.touchPeer(info.id, info.name, info.platform, host, if (info.port > 0) info.port else port)
+        Store.touchPeer(info.id, info.name, info.platform, host, if (info.port > 0) info.port else port, tcp = true)
         return json(mapOf("ok" to true))
     }
 

@@ -1,5 +1,5 @@
 #define MyAppName "LinkSync"
-#define MyAppVersion "1.1.2"
+#define MyAppVersion "1.1.3"
 #define MyAppExeName "LinkSync.exe"
 
 [Setup]

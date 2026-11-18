@@ -24,7 +24,10 @@ public sealed class Peer
     public int Port { get; set; }
     public long LastSeen { get; set; }
 
-    public bool Online => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - LastSeen < 15000;
+    /// <summary>最近一次 TCP(/api/info) 探测成功的时刻。UDP 广播只能证明"在网"，不能证明"能连"。</summary>
+    public long LastTcpSeen { get; set; }
+
+    public bool Online => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - LastTcpSeen < 15000;
 }
 
 public sealed class Transfer

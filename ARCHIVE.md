@@ -1,11 +1,11 @@
-# LinkSync 1.1.2 完整归档
+# LinkSync 1.1.3 完整归档
 
-本文件夹是 **LinkSync 1.1.2**（由 1.1 逐步修复而来）的完整项目备份，包含源码、资源、构建脚本、安装脚本、文档和已构建成品。即使原程序丢失，也可以据此重建。
+本文件夹是 **LinkSync 1.1.3**（由 1.1 逐步修复而来）的完整项目备份，包含源码、资源、构建脚本、安装脚本、文档和已构建成品。即使原程序丢失，也可以据此重建。
 
 > 本文描述的是本地完整归档。GitHub 仓库只跟踪源码、文档、脚本与图标：`dist/`（构建产物）和 `tools/`（工具链）被 [`.gitignore`](.gitignore) 排除，成品改由 [Releases](../../releases) 发布。
 
-- 归档日期：2026-11-18（1.1.2 修复版；原始 1.1 成品备份在 `_backup-original/`）
-- 版本：LinkSync 1.1.2（Windows 1.1.2.0 / Android versionCode 4）
+- 归档日期：2026-11-18（1.1.3 修复版；原始 1.1 成品备份在 `_backup-original/`）
+- 版本：LinkSync 1.1.3（Windows 1.1.3.0 / Android versionCode 5）
 - 运行平台：Windows 10/11 x64；Android 10+（API 29+）
 
 ## 目录内容
@@ -41,7 +41,7 @@
 在归档根目录执行：
 
 ```powershell
-Get-FileHash .\dist\LinkSync-Setup-1.1.2.exe -Algorithm SHA256
+Get-FileHash .\dist\LinkSync-Setup-1.1.3.exe -Algorithm SHA256
 Get-FileHash .\dist\LinkSync.apk -Algorithm SHA256
 Get-FileHash .\dist\LinkSync-win64\LinkSync.exe -Algorithm SHA256
 ```

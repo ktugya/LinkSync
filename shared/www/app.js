@@ -168,6 +168,9 @@
       $('#bootField').hidden = true;
       $('#batteryField').hidden = true;
     }
+    const fw = $('#fwHint');
+    fw.textContent = s.firewallHint || '';
+    fw.hidden = !s.firewallHint;
     const active = document.activeElement;
     const editing = active && $('#page-settings').contains(active);
     if (settingsFilled && editing) return;

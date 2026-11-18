@@ -158,11 +158,11 @@ class SyncService : Service() {
             try {
                 val now = Store.now()
                 for (peer in Store.peers.values) {
-                    if (now - peer.lastSeen < 8000) continue
+                    if (now - peer.lastTcpSeen < 8000) continue
                     scope.launch {
                         val info = Net.fetchInfo(peer.ip, peer.port)
                         if (info != null) {
-                            Store.touchPeer(info.id, info.name, info.platform, peer.ip, peer.port)
+                            Store.touchPeer(info.id, info.name, info.platform, peer.ip, peer.port, tcp = true)
                         }
                     }
                 }
